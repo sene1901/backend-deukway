@@ -1,30 +1,38 @@
-// import { NestFactory } from '@nestjs/core';
-// import { AppModule } from './app.module';
-
-// async function bootstrap() {
-//   const app = await NestFactory.create(AppModule);
-//   await app.listen(process.env.PORT ?? 3000);
-// }
-// bootstrap();
-
-
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-
+import 'dotenv/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Préfixe global de l'API (optionnel mais recommandé)
-  app.setGlobalPrefix('api');
+  // Validation automatique des DTO
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
-  // Configuration Swagger
+  // Swagger
   const config = new DocumentBuilder()
     .setTitle('Deukway API')
-    .setDescription('Documentation de l’API Deukway')
+    .setDescription('API de recherche de logements')
     .setVersion('1.0')
-    .addBearerAuth() // Pour les routes protégées par JWT
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Entrez votre token JWT',
+        in: 'header',
+      },
+      'access-token',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -33,8 +41,10 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 
-  console.log(`Application : http://localhost:${process.env.PORT ?? 3000}/api`);
-  console.log(` Swagger : http://localhost:${process.env.PORT ?? 3000}/api/docs`);
+  console.log(`🚀 API: http://localhost:${process.env.PORT ?? 3000}`);
+  console.log(
+    `📚 Swagger: http://localhost:${process.env.PORT ?? 3000}/api/docs`,
+  );
 }
 
 bootstrap();
