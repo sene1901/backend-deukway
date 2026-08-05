@@ -1,4 +1,7 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateReservationDto } from './create-reservation.dto';
+import { IsEnum } from 'class-validator';
+import { ReservationStatus } from '@prisma/client';
 
-export class UpdateReservationDto extends PartialType(CreateReservationDto) {}
+export class UpdateReservationStatusDto {
+  @IsEnum(ReservationStatus)
+  status: ReservationStatus;
+}

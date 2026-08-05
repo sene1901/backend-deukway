@@ -10,33 +10,303 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
 enum UserRole {
   ADMIN
   OWNER
   TENANT
 }
 
+enum PropertyType {
+  ROOM
+  STUDIO
+  APARTMENT
+  COLOCATION
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  RESERVED
+  RENTED
+  SUSPENDED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  VIRTUAL_TOUR
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+}
+enum ContractStatus {
+  PENDING
+  SIGNED_BY_TENANT
+  SIGNED_BY_OWNER
+  FULLY_SIGNED
+}
+enum PaymentProvider {
+  WAVE
+  ORANGE_MONEY
+  FREE_MONEY
+  CARD
+}
+
+enum PaymentType {
+  CAUTION
+  FIRST_RENT
+  RESERVATION_FEE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 model User {
-  id              String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  firstName       String
-  lastName        String
+  firstName String
+  lastName  String
 
-  email           String?  @unique
-  phone           String   @unique
-  password        String
+  email    String? @unique
+  phone    String  @unique
+  password String
 
-  city            String?
-  avatar          String?
+  city   String?
+  avatar String?
 
-  role            UserRole @default(TENANT)
+  role UserRole @default(TENANT)
 
-  isVerified      Boolean  @default(false)
-  emailVerified   Boolean  @default(false)
-  phoneVerified   Boolean  @default(false)
+  isVerified    Boolean @default(false)
+  emailVerified Boolean @default(false)
+  phoneVerified Boolean @default(false)
 
-  isActive        Boolean  @default(true)
+  isActive Boolean @default(true)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  annonces         Annonce[]
+  favoris          Favori[]
+  reservations     Reservation[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  notifications    Notification[]
+  contractsAsTenant Contract[] @relation("TenantContracts")
+  contractsAsOwner  Contract[] @relation("OwnerContracts") 
+   payments          Payment[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Annonce {
+  id String @id @default(cuid())
+
+  title       String
+  description String
+
+  price Float
+
+  propertyType PropertyType
+
+  surface Float?
+
+  rooms Int?
+
+  furnished Boolean @default(false)
+
+  waterIncluded Boolean @default(false)
+
+  electricityIncluded Boolean @default(false)
+
+  wifi Boolean @default(false)
+
+  parking Boolean @default(false)
+
+  airConditioning Boolean @default(false)
+
+  petsAllowed Boolean @default(false)
+
+  available Boolean @default(true)
+
+  address String
+
+  latitude Float?
+
+  longitude Float?
+
+  isVerified Boolean @default(false)
+
+  status PropertyStatus @default(AVAILABLE)
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  quartierId String?
+  quartier   Quartier? @relation(fields: [quartierId], references: [id])
+
+  medias       Media[]
+  favoris      Favori[]
+  reservations Reservation[]
+  messages     Message[]
+  payments     Payment[] 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Media {
+  id String @id @default(cuid())
+
+  url String
+  
+  publicId String?
+  
+  type MediaType
+
+  annonceId String
+
+  annonce Annonce @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
+
+model Ville {
+  id String @id @default(cuid())
+
+  name String @unique
+
+  quartiers Quartier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Quartier {
+  id String @id @default(cuid())
+
+  name String
+
+  villeId String
+  ville   Ville  @relation(fields: [villeId], references: [id], onDelete: Cascade)
+
+  annonces Annonce[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, villeId])
+}
+
+model Favori {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  annonceId String
+  annonce   Annonce @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, annonceId])
+}
+
+model Reservation {
+  id String @id @default(cuid())
+
+  date    DateTime
+  message String?
+
+  status ReservationStatus @default(PENDING)
+
+  tenantId String
+  tenant   User   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  annonceId String
+  annonce   Annonce @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+   contract Contract?
+   payments     Payment[] 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id String @id @default(cuid())
+
+  content String
+  isRead  Boolean @default(false)
+
+  senderId String
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId String
+  receiver   User   @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  annonceId String?
+  annonce   Annonce? @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  title String
+  body  String
+
+  isRead Boolean @default(false)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Contract {
+  id String @id @default(cuid())
+
+  content String
+
+  status ContractStatus @default(PENDING)
+
+  reservationId String   @unique
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  tenantId String
+  tenant   User   @relation("TenantContracts", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  ownerId String
+  owner   User   @relation("OwnerContracts", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  tenantSignedAt DateTime?
+  ownerSignedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id String @id @default(cuid())
+
+  amount   Float
+  provider PaymentProvider
+  type     PaymentType
+  status   PaymentStatus @default(PENDING)
+
+  reference String @unique
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  annonceId String?
+  annonce   Annonce? @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+
+  reservationId String?
+  reservation   Reservation? @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

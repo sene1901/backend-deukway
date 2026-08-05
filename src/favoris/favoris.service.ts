@@ -1,26 +1,130 @@
-import { Injectable } from '@nestjs/common';
-import { CreateFavorisDto } from './dto/create-favoris.dto';
-import { UpdateFavorisDto } from './dto/update-favoris.dto';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import { PrismaService } from '../prisma/prisma.service';
+
+const favoriInclude = {
+  annonce: {
+    include: {
+      owner: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          avatar: true,
+        },
+      },
+      quartier: {
+        include: {
+          ville: true,
+        },
+      },
+      medias: true,
+    },
+  },
+};
 
 @Injectable()
 export class FavorisService {
-  create(createFavorisDto: CreateFavorisDto) {
-    return 'This action adds a new favoris';
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Ajouter une annonce aux favoris
+   */
+  async add(userId: string, annonceId: string) {
+    const annonce = await this.prisma.annonce.findUnique({
+      where: { id: annonceId },
+    });
+
+    if (!annonce) {
+      throw new NotFoundException('Annonce introuvable');
+    }
+
+    const exists = await this.prisma.favori.findUnique({
+      where: {
+        userId_annonceId: {
+          userId,
+          annonceId,
+        },
+      },
+    });
+
+    if (exists) {
+      throw new ConflictException(
+        'Cette annonce est déjà dans vos favoris',
+      );
+    }
+
+    return this.prisma.favori.create({
+      data: {
+        userId,
+        annonceId,
+      },
+      include: favoriInclude,
+    });
   }
 
-  findAll() {
-    return `This action returns all favoris`;
+  /**
+   * Retirer une annonce des favoris
+   */
+  async remove(userId: string, annonceId: string) {
+    const favori = await this.prisma.favori.findUnique({
+      where: {
+        userId_annonceId: {
+          userId,
+          annonceId,
+        },
+      },
+    });
+
+    if (!favori) {
+      throw new NotFoundException(
+        "Cette annonce n'est pas dans vos favoris",
+      );
+    }
+
+    await this.prisma.favori.delete({
+      where: {
+        userId_annonceId: {
+          userId,
+          annonceId,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Annonce retirée des favoris',
+    };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} favoris`;
+  /**
+   * Liste des favoris de l'utilisateur connecté
+   */
+  async findAll(userId: string) {
+    return this.prisma.favori.findMany({
+      where: { userId },
+      include: favoriInclude,
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
-  update(id: number, updateFavorisDto: UpdateFavorisDto) {
-    return `This action updates a #${id} favoris`;
-  }
+  /**
+   * Vérifier si une annonce est en favori pour l'utilisateur
+   */
+  async check(userId: string, annonceId: string) {
+    const favori = await this.prisma.favori.findUnique({
+      where: {
+        userId_annonceId: {
+          userId,
+          annonceId,
+        },
+      },
+    });
 
-  remove(id: number) {
-    return `This action removes a #${id} favoris`;
+    return { isFavorite: !!favori };
   }
 }

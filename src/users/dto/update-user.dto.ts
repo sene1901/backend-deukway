@@ -1,9 +1,32 @@
-import { PartialType, OmitType } from '@nestjs/mapped-types';
-import { CreateUserDto } from './create-user.dto';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsPhoneNumber,
+} from 'class-validator';
 
-// On exclut le mot de passe de la mise à jour classique du profil :
-// un changement de mot de passe doit passer par une route dédiée
-// (ex: /auth/change-password), avec vérification de l'ancien mot de passe.
-export class UpdateUserDto extends PartialType(
-  OmitType(CreateUserDto, ['password'] as const),
-) {}
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsPhoneNumber()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+}

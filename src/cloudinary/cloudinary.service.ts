@@ -1,20 +1,43 @@
-import { Injectable } from '@nestjs/common';
-import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
-import toStream = require('buffer-to-stream');
+import { Inject, Injectable } from '@nestjs/common';
+import { UploadApiResponse, v2 } from 'cloudinary';
+import * as streamifier from 'streamifier';
+
+import { CLOUDINARY } from './cloudinary.provider';
 
 @Injectable()
 export class CloudinaryService {
-  uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
+  constructor(@Inject(CLOUDINARY) private readonly cloudinary: typeof v2) {}
+
+  uploadFile(
+    file: Express.Multer.File,
+    resourceType: 'image' | 'video' = 'image',
+  ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
-      const upload = cloudinary.uploader.upload_stream(
-        { folder: 'nestjs-uploads' },
+      const uploadStream = this.cloudinary.uploader.upload_stream(
+        {
+          folder: 'deukway/annonces',
+          resource_type: resourceType,
+        },
         (error, result) => {
-          if (error) return reject(error);
-          if (!result) return reject(new Error('Upload failed: no result returned from Cloudinary'));
+          if (error || !result) {
+            return reject(
+              error ?? new Error("Échec de l'upload Cloudinary"),
+            );
+          }
           resolve(result);
         },
       );
-      toStream(file.buffer).pipe(upload);
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
+  async deleteFile(
+    publicId: string,
+    resourceType: 'image' | 'video' = 'image',
+  ) {
+    return this.cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
     });
   }
 }

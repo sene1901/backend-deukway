@@ -4,9 +4,17 @@ import 'dotenv/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Intercepteur global pour formater les réponses
+  app.useGlobalInterceptors(new ResponseInterceptor());
+
+  // Gestion globale des erreurs HTTP
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Validation automatique des DTO
   app.useGlobalPipes(
@@ -41,7 +49,10 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 
-  console.log(`🚀 API: http://localhost:${process.env.PORT ?? 3000}`);
+  console.log(
+    `🚀 API: http://localhost:${process.env.PORT ?? 3000}`,
+  );
+
   console.log(
     `📚 Swagger: http://localhost:${process.env.PORT ?? 3000}/api/docs`,
   );
