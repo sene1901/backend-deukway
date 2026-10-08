@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,11 +8,20 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { UserRole } from '@prisma/client';
 
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -19,12 +29,14 @@ import {
 } from '@nestjs/swagger';
 
 import { AnnoncesService } from './annonces.service';
-
 import { CreateAnnonceDto } from './dto/create-annonce.dto';
 import { UpdateAnnonceDto } from './dto/update-annonce.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('Annonces')
 @Controller('annonces')
@@ -34,20 +46,78 @@ export class AnnoncesController {
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Créer une annonce',
+    summary: 'Créer une annonce avec ses images',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'string',
+          description:
+            "JSON stringifié des champs de l'annonce (title, description, price, propertyType, address, etc.)",
+          example:
+            '{"title":"Studio meublé","description":"Proche université","price":150000,"propertyType":"STUDIO","address":"Sacré-Cœur 3"}',
+        },
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 201,
     description: 'Annonce créée avec succès',
   })
-  create(
+  @UseInterceptors(FilesInterceptor('files', 10))
+  async create(
     @CurrentUser() user: any,
-    @Body() dto: CreateAnnonceDto,
+    @Body('data') data: string,
+    @UploadedFiles() files: Express.Multer.File[],
   ) {
-    return this.annoncesService.create(user.id, dto);
+    if (!data) {
+      throw new BadRequestException(
+        'Le champ "data" (JSON des informations de l’annonce) est requis',
+      );
+    }
+
+    let parsed: any;
+
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      throw new BadRequestException(
+        'Le champ "data" doit être un JSON valide',
+      );
+    }
+
+    const dto = plainToInstance(CreateAnnonceDto, parsed);
+    const errors = await validate(dto);
+
+    if (errors.length > 0) {
+      throw new BadRequestException(
+        errors
+          .map((error) =>
+            Object.values(error.constraints ?? {}),
+          )
+          .flat(),
+      );
+    }
+
+    return this.annoncesService.createWithMedia(
+      user.id,
+      dto,
+      files ?? [],
+    );
   }
 
   @Get()
@@ -68,9 +138,21 @@ export class AnnoncesController {
     @Query('villeId') villeId?: string,
     @Query('quartierId') quartierId?: string,
   ) {
-    return this.annoncesService.findAll({ villeId, quartierId });
+    return this.annoncesService.findAll({
+      villeId,
+      quartierId,
+    });
   }
 
+  @Get(':id/similar')
+  @ApiOperation({
+    summary: 'Annonces similaires',
+  })
+  findSimilar(@Param('id') id: string) {
+    return this.annoncesService.findSimilar(id);
+  }
+
+  // Consulter une annonce : public
   @Get(':id')
   @ApiOperation({
     summary: 'Voir une annonce',
@@ -80,8 +162,9 @@ export class AnnoncesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Modifier une annonce',
   })
@@ -98,8 +181,9 @@ export class AnnoncesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Supprimer une annonce',
   })

@@ -37,6 +37,15 @@ export class AuthService {
     }
   }
 
+ async profile(userId: string) {
+  const user = await this.usersService.findOne(userId);
+
+  if (!user) {
+    throw new UnauthorizedException('Utilisateur introuvable');
+  }
+
+  return user;
+}
   async login(dto: LoginDto) {
     const user = await this.usersService.findByLogin(dto.login);
 

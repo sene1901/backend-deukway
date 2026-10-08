@@ -1,7 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import 'dotenv/config';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -10,13 +10,17 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Intercepteur global pour formater les réponses
-  app.useGlobalInterceptors(new ResponseInterceptor());
+  // Intercepteur global
+  app.useGlobalInterceptors(
+    new ResponseInterceptor(),
+  );
 
-  // Gestion globale des erreurs HTTP
-  app.useGlobalFilters(new HttpExceptionFilter());
+  // Gestion globale des erreurs
+  app.useGlobalFilters(
+    new HttpExceptionFilter(),
+  );
 
-  // Validation automatique des DTO
+  // Validation globale des DTO
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -28,33 +32,42 @@ async function bootstrap() {
   // Swagger
   const config = new DocumentBuilder()
     .setTitle('Deukway API')
-    .setDescription('API de recherche de logements')
-    .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Entrez votre token JWT',
-        in: 'header',
-      },
-      'access-token',
+    .setDescription(
+      'API de recherche, location et colocation de logements au Sénégal',
     )
+    .setVersion('1.0')
+   .addBearerAuth(
+  {
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'JWT',
+    description: 'Entrer votre token JWT',
+  },
+  'access-token',
+)
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(
+    app,
+    config,
+  );
 
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup(
+    'api/docs',
+    app,
+    document,
+  );
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 3000;
+
+  await app.listen(port);
 
   console.log(
-    `🚀 API: http://localhost:${process.env.PORT ?? 3000}`,
+    `🚀 API: http://localhost:${port}`,
   );
 
   console.log(
-    `📚 Swagger: http://localhost:${process.env.PORT ?? 3000}/api/docs`,
+    `📚 Swagger: http://localhost:${port}/api/docs`,
   );
 }
 
