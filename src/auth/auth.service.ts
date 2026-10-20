@@ -3,12 +3,12 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { UsersService } from '../users/users.service';
-
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -19,40 +19,32 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    try {
-      const user = await this.usersService.create(dto);
+ async register(dto: RegisterDto) {
+  try {
+    const user = await this.usersService.create(dto);
 
-      return {
-        success: true,
-        message: 'Compte créé avec succès',
-        data: user,
-      };
-    } catch (error) {
-      if (error instanceof ConflictException) {
-        throw new BadRequestException(error.message);
-      }
-
-      throw error;
+    return {
+      success: true,
+      message: 'Compte créé avec succès',
+      data: user,
+    };
+  } catch (error) {
+    if (error instanceof ConflictException) {
+      throw new BadRequestException(error.message);
     }
+
+    throw error;
   }
-
- async profile(userId: string) {
-  const user = await this.usersService.findOne(userId);
-
-  if (!user) {
-    throw new UnauthorizedException('Utilisateur introuvable');
-  }
-
-  return user;
 }
   async login(dto: LoginDto) {
     const user = await this.usersService.findByLogin(dto.login);
 
     if (!user) {
-      throw new UnauthorizedException(
-        'Identifiants invalides',
-      );
+      throw new UnauthorizedException('Identifiants invalides');
+    }
+
+    if (!user.isActive) {
+      throw new ForbiddenException('Ce compte est désactivé');
     }
 
     const validPassword = await bcrypt.compare(
@@ -61,9 +53,7 @@ export class AuthService {
     );
 
     if (!validPassword) {
-      throw new UnauthorizedException(
-        'Identifiants invalides',
-      );
+      throw new UnauthorizedException('Identifiants invalides');
     }
 
     const payload = {
@@ -72,13 +62,16 @@ export class AuthService {
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
-
-    const { password, ...result } = user;
+    const { password, ...safeUser } = user;
 
     return {
       success: true,
       access_token: accessToken,
-      user: result,
+      user: safeUser,
     };
+  }
+
+  async profile(userId: string) {
+    return this.usersService.findOne(userId);
   }
 }

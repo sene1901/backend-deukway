@@ -48,6 +48,7 @@ export class AnnoncesService {
       data: {
         ...dto,
         ownerId,
+        moderationStatus: 'PENDING',
       },
       include: annonceInclude,
     });
@@ -65,6 +66,7 @@ export class AnnoncesService {
       data: {
         ...dto,
         ownerId,
+        moderationStatus: 'PENDING',
       },
     });
 
@@ -100,6 +102,7 @@ export class AnnoncesService {
   }) {
     return this.prisma.annonce.findMany({
       where: {
+        moderationStatus: 'APPROVED',
         ...(filters?.quartierId && {
           quartierId: filters.quartierId,
         }),
@@ -121,7 +124,9 @@ export class AnnoncesService {
    */
   async findOne(id: string) {
     const annonce = await this.prisma.annonce.findUnique({
-      where: { id },
+      where: {
+        id,
+      moderationStatus: 'APPROVED', },
       include: annonceInclude,
     });
 

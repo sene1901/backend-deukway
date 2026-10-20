@@ -31,40 +31,50 @@ const publicUserSelect = {
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto) {
-    if (createUserDto.role === UserRole.ADMIN) {
-      throw new ForbiddenException('Rôle non autorisé');
-    }
+async create(createUserDto: CreateUserDto) {
+  const existingPhone = await this.findByPhone(
+    createUserDto.phone,
+  );
 
-    const existingPhone = await this.findByPhone(createUserDto.phone);
+  if (existingPhone) {
+    throw new ConflictException(
+      'Ce numéro de téléphone est déjà utilisé',
+    );
+  }
 
-    if (existingPhone) {
+  if (createUserDto.email) {
+    const existingEmail = await this.findByEmail(
+      createUserDto.email,
+    );
+
+    if (existingEmail) {
       throw new ConflictException(
-        'Ce numéro de téléphone est déjà utilisé',
+        'Cet email est déjà utilisé',
       );
     }
-
-    if (createUserDto.email) {
-      const existingEmail = await this.findByEmail(createUserDto.email);
-
-      if (existingEmail) {
-        throw new ConflictException('Cet email est déjà utilisé');
-      }
-    }
-
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-
-    const user = await this.prisma.user.create({
-      data: {
-        ...createUserDto,
-        password: hashedPassword,
-      },
-    });
-
-    const { password, ...result } = user;
-
-    return result;
   }
+
+  const hashedPassword = await bcrypt.hash(
+    createUserDto.password,
+    10,
+  );
+
+  const user = await this.prisma.user.create({
+    data: {
+      firstName: createUserDto.firstName,
+      lastName: createUserDto.lastName,
+      email: createUserDto.email,
+      phone: createUserDto.phone,
+      password: hashedPassword,
+      city: createUserDto.city,
+      avatar: createUserDto.avatar,
+      role: UserRole.TENANT,
+    },
+    select: publicUserSelect,
+  });
+
+  return user;
+}
 
   async findAll() {
     return this.prisma.user.findMany({

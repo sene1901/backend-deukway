@@ -37,11 +37,11 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-@Get('profile')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('access-token')
-@ApiOperation({ summary: 'Profil utilisateur connecté' })
-profile(@CurrentUser() user: any) {
-  return this.authService.profile(user.id);
-}
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Profil utilisateur connecté' })
+  profile(@CurrentUser() user: any) {
+    return this.authService.profile(user.id);
+  }
 }

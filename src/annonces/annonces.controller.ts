@@ -161,7 +161,7 @@ export class AnnoncesController {
     return this.annoncesService.findOne(id);
   }
 
-  @Patch(':id')
+    @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiBearerAuth('access-token')
@@ -177,6 +177,7 @@ export class AnnoncesController {
       id,
       user.id,
       dto,
+      user.role,
     );
   }
 
@@ -194,6 +195,7 @@ export class AnnoncesController {
     return this.annoncesService.remove(
       id,
       user.id,
+      user.role,
     );
   }
 }
