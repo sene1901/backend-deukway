@@ -1,28 +1,35 @@
+import { Transform } from 'class-transformer';
 import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MinLength,
+  IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength,
 } from 'class-validator';
+import { UserRole } from '@prisma/client';
+import { normalizePhone } from '../utils/normalize';
+
+const trim = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.trim() : value;
 
 export class RegisterDto {
-  @IsString()
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(60)
   firstName: string;
 
-  @IsString()
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(60)
   lastName: string;
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @IsString()
+  @Transform(({ value }) => normalizePhone(value))
+  @Matches(/^\+221(7[05-8]|3[03])\d{7}$/, { message: 'Numéro de téléphone sénégalais invalide' })
   phone: string;
 
-  @MinLength(6)
+  @IsString() @MinLength(8) @MaxLength(72) // bcrypt ignore tout après 72 octets
   password: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(({ value }) => (value === '' ? undefined : String(value).trim().toLowerCase()))
+  @IsEmail()
+  email?: string;
+
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(80)
   city?: string;
+
+  @IsOptional() @IsIn([UserRole.OWNER, UserRole.TENANT]) // jamais ADMIN
+  role?: UserRole;
 }
