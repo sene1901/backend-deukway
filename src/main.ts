@@ -11,6 +11,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Intercepteur global
+  app.enableCors({
+  origin: [
+    'https://admin-deukway.vercel.app',
+    'http://localhost:5173',
+  ],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
   app.useGlobalInterceptors(
     new ResponseInterceptor(),
   );
