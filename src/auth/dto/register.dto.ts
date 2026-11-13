@@ -30,6 +30,6 @@ export class RegisterDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(80)
   city?: string;
 
-  @IsOptional() @IsIn([UserRole.OWNER, UserRole.TENANT]) // jamais ADMIN
+  @IsOptional() @IsIn([UserRole.OWNER, UserRole.TENANT]) 
   role?: UserRole;
 }
