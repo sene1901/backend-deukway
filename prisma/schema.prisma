@@ -2,192 +2,15 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma 5/6 : ajoute  url = env("DATABASE_URL")  ci-dessous.
+// Prisma 7 : l'URL reste dans prisma.config.ts (ne rien ajouter).
 datasource db {
   provider = "postgresql"
 }
-enum ListingModerationStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
 
-model User {
-  id                String         @id @default(cuid())
-  firstName         String
-  lastName          String
-  email             String?        @unique
-  phone             String         @unique
-  password          String
-  city              String?
-  avatar            String?
-  role              UserRole       @default(TENANT)
-  isVerified        Boolean        @default(false)
-  emailVerified     Boolean        @default(false)
-  phoneVerified     Boolean        @default(false)
-  isActive          Boolean        @default(true)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  annonces          Annonce[]
-  contractsAsOwner  Contract[]     @relation("OwnerContracts")
-  contractsAsTenant Contract[]     @relation("TenantContracts")
-  favoris           Favori[]
-  receivedMessages  Message[]      @relation("ReceivedMessages")
-  sentMessages      Message[]      @relation("SentMessages")
-  notifications     Notification[]
-  payments          Payment[]
-  reservations      Reservation[]
-}
-
-model Annonce {
-  id                  String         @id @default(cuid())
-  title               String
-  description         String
-  price               Float
-  propertyType        PropertyType
-  surface             Float?
-  rooms               Int?
-  furnished           Boolean        @default(false)
-  waterIncluded       Boolean        @default(false)
-  electricityIncluded Boolean        @default(false)
-  wifi                Boolean        @default(false)
-  parking             Boolean        @default(false)
-  airConditioning     Boolean        @default(false)
-  petsAllowed         Boolean        @default(false)
-  available           Boolean        @default(true)
-  address             String
-  latitude            Float?
-  longitude           Float?
-  isVerified          Boolean        @default(false)
-  status              PropertyStatus @default(AVAILABLE)
-  ownerId             String
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  quartierId          String?
-  owner               User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  quartier            Quartier?      @relation(fields: [quartierId], references: [id])
-  favoris             Favori[]
-  medias              Media[]
-  messages            Message[]
-  payments            Payment[]
-  reservations        Reservation[]
-  moderationStatus ListingModerationStatus @default(PENDING)
-
-}
-
-
-
-
-model Media {
-  id        String    @id @default(cuid())
-  url       String
-  type      MediaType
-  annonceId String
-  createdAt DateTime  @default(now())
-  publicId  String?
-  annonce   Annonce   @relation(fields: [annonceId], references: [id], onDelete: Cascade)
-}
-
-model Ville {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  quartiers Quartier[]
-}
-
-model Quartier {
-  id        String    @id @default(cuid())
-  name      String
-  villeId   String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  annonces  Annonce[]
-  ville     Ville     @relation(fields: [villeId], references: [id], onDelete: Cascade)
-
-  @@unique([name, villeId])
-}
-
-model Favori {
-  id        String   @id @default(cuid())
-  userId    String
-  annonceId String
-  createdAt DateTime @default(now())
-  annonce   Annonce  @relation(fields: [annonceId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, annonceId])
-}
-
-model Reservation {
-  id        String            @id @default(cuid())
-  date      DateTime
-  message   String?
-  status    ReservationStatus @default(PENDING)
-  tenantId  String
-  annonceId String
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  contract  Contract?
-  payments  Payment[]
-  annonce   Annonce           @relation(fields: [annonceId], references: [id], onDelete: Cascade)
-  tenant    User              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-}
-
-model Message {
-  id         String   @id @default(cuid())
-  content    String
-  isRead     Boolean  @default(false)
-  senderId   String
-  receiverId String
-  annonceId  String?
-  createdAt  DateTime @default(now())
-  annonce    Annonce? @relation(fields: [annonceId], references: [id], onDelete: Cascade)
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  title     String
-  body      String
-  isRead    Boolean  @default(false)
-  userId    String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Contract {
-  id             String         @id @default(cuid())
-  content        String
-  status         ContractStatus @default(PENDING)
-  reservationId  String         @unique
-  tenantId       String
-  ownerId        String
-  tenantSignedAt DateTime?
-  ownerSignedAt  DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  owner          User           @relation("OwnerContracts", fields: [ownerId], references: [id], onDelete: Cascade)
-  reservation    Reservation    @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  tenant         User           @relation("TenantContracts", fields: [tenantId], references: [id], onDelete: Cascade)
-}
-
-model Payment {
-  id            String          @id @default(cuid())
-  amount        Float
-  provider      PaymentProvider
-  type          PaymentType
-  status        PaymentStatus   @default(PENDING)
-  reference     String          @unique
-  userId        String
-  annonceId     String?
-  reservationId String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  annonce       Annonce?        @relation(fields: [annonceId], references: [id], onDelete: Cascade)
-  reservation   Reservation?    @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
 
 enum UserRole {
   ADMIN
@@ -207,6 +30,12 @@ enum PropertyStatus {
   RESERVED
   RENTED
   SUSPENDED
+}
+
+enum ListingModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum MediaType {
@@ -246,4 +75,262 @@ enum PaymentStatus {
   PENDING
   SUCCESS
   FAILED
+}
+
+enum DisputeType {
+  REPORT // signalement
+  CLAIM // réclamation
+}
+
+enum DisputeStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+// ─────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String?  @unique
+  phone         String   @unique
+  password      String
+  city          String?
+  avatar        String?
+  role          UserRole @default(TENANT)
+  isVerified    Boolean  @default(false)
+  emailVerified Boolean  @default(false)
+  phoneVerified Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  annonces          Annonce[]
+  contractsAsOwner  Contract[]     @relation("OwnerContracts")
+  contractsAsTenant Contract[]     @relation("TenantContracts")
+  favoris           Favori[]
+  receivedMessages  Message[]      @relation("ReceivedMessages")
+  sentMessages      Message[]      @relation("SentMessages")
+  notifications     Notification[]
+  payments          Payment[]
+  reservations      Reservation[]
+  disputesFiled     Dispute[]      @relation("DisputesFiled")
+  disputesAgainst   Dispute[]      @relation("DisputesAgainst")
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model Annonce {
+  id                  String         @id @default(cuid())
+  title               String
+  description         String
+  conditions          String?
+  price               Int // FCFA, sans centimes
+  propertyType        PropertyType
+  surface             Float?
+  rooms               Int?
+  furnished           Boolean        @default(false)
+  waterIncluded       Boolean        @default(false)
+  electricityIncluded Boolean        @default(false)
+  wifi                Boolean        @default(false)
+  parking             Boolean        @default(false)
+  airConditioning     Boolean        @default(false)
+  petsAllowed         Boolean        @default(false)
+  available           Boolean        @default(true)
+  address             String
+  latitude            Float?
+  longitude           Float?
+  isVerified          Boolean        @default(false)
+  isPremium           Boolean        @default(false)
+  status              PropertyStatus @default(AVAILABLE)
+  moderationStatus    ListingModerationStatus @default(PENDING)
+  expiresAt           DateTime?
+  ownerId             String
+  quartierId          String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  quartier     Quartier?     @relation(fields: [quartierId], references: [id])
+  favoris      Favori[]
+  medias       Media[]
+  messages     Message[]
+  payments     Payment[]
+  reservations Reservation[]
+  disputes     Dispute[]
+
+  @@index([moderationStatus])
+  @@index([status, available])
+  @@index([propertyType, price])
+  @@index([quartierId])
+  @@index([ownerId])
+}
+
+model Media {
+  id        String    @id @default(cuid())
+  url       String
+  type      MediaType
+  annonceId String
+  publicId  String?
+  createdAt DateTime  @default(now())
+
+  annonce Annonce @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+
+  @@index([annonceId])
+}
+
+model Ville {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quartiers Quartier[]
+}
+
+model Quartier {
+  id        String   @id @default(cuid())
+  name      String
+  villeId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  annonces Annonce[]
+  ville    Ville     @relation(fields: [villeId], references: [id], onDelete: Cascade)
+
+  @@unique([name, villeId])
+  @@index([villeId])
+}
+
+model Favori {
+  id        String   @id @default(cuid())
+  userId    String
+  annonceId String
+  createdAt DateTime @default(now())
+
+  annonce Annonce @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, annonceId])
+}
+
+model Reservation {
+  id        String            @id @default(cuid())
+  date      DateTime
+  message   String?
+  status    ReservationStatus @default(PENDING)
+  tenantId  String
+  annonceId String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  contract Contract?
+  payments Payment[]
+  annonce  Annonce   @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+  tenant   User      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([annonceId, status])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String
+  isRead     Boolean  @default(false)
+  senderId   String
+  receiverId String
+  annonceId  String?
+  createdAt  DateTime @default(now())
+
+  annonce  Annonce? @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+  receiver User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender   User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([receiverId, isRead])
+  @@index([senderId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+// Données légales/financières : Restrict (on désactive un compte, on ne le supprime pas)
+model Contract {
+  id             String         @id @default(cuid())
+  content        String
+  status         ContractStatus @default(PENDING)
+  reservationId  String         @unique
+  tenantId       String
+  ownerId        String
+  tenantSignedAt DateTime?
+  ownerSignedAt  DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  owner       User        @relation("OwnerContracts", fields: [ownerId], references: [id], onDelete: Restrict)
+  tenant      User        @relation("TenantContracts", fields: [tenantId], references: [id], onDelete: Restrict)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@index([ownerId])
+  @@index([tenantId])
+}
+
+model Payment {
+  id            String          @id @default(cuid())
+  amount        Int // FCFA
+  commission    Int             @default(0) // FCFA
+  provider      PaymentProvider
+  type          PaymentType
+  status        PaymentStatus   @default(PENDING)
+  reference     String          @unique
+  userId        String
+  annonceId     String?
+  reservationId String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  annonce     Annonce?     @relation(fields: [annonceId], references: [id], onDelete: SetNull)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  type           DisputeType   @default(REPORT)
+  reason         String
+  description    String?
+  status         DisputeStatus @default(OPEN)
+  resolution     String?
+  resolvedAt     DateTime?
+  reporterId     String
+  reportedUserId String?
+  annonceId      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  reporter     User     @relation("DisputesFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User?    @relation("DisputesAgainst", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  annonce      Annonce? @relation(fields: [annonceId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([reporterId])
 }

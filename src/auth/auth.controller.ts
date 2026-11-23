@@ -17,7 +17,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-
+import { RegisterAdminDto } from './dto/register-admin.dto';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -36,7 +36,11 @@ export class AuthController {
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
-
+@Post('register-admin')
+@ApiOperation({ summary: 'Créer un compte administrateur (code d\'invitation requis)' })
+registerAdmin(@Body() dto: RegisterAdminDto) {
+  return this.authService.registerAdmin(dto);
+}
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
